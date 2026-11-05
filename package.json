@@ -6,7 +6,7 @@
     "node": "22.23.1"
   },
   "scripts": {
-    "test": "node --test apps/api/app.test.js",
+    "test": "node --test apps/api/app.test.js tests/playwright/history.test.mjs",
     "lint": "eslint apps/api apps/web scripts/smoke.mjs tests/playwright tests/ai-evals tests/mobile/run.mjs eslint.config.js",
     "smoke": "node scripts/smoke.mjs",
     "test:e2e": "playwright test --config=tests/playwright/playwright.config.js",
