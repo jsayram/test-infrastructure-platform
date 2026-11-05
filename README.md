@@ -74,7 +74,7 @@ npm test
 ./scripts/teardown.sh
 ```
 
-Setup prints `Listening at http://127.0.0.1:3000`. Open that address before teardown and confirm the page displays **API is healthy.** The health command returns HTTP 200 and `{"status":"ok"}`. The unit tests cover the health response, the public route boundary, and the data API input and ownership rules. Expect seven passing tests. The task workspace needs the Compose or Kubernetes database.
+Setup prints `Listening at http://127.0.0.1:3000`. Open that address before teardown and confirm the page displays **API is healthy.** The health command returns HTTP 200 and `{"status":"ok"}`. The unit tests cover the health response, the public route boundary, and the data API input and ownership rules. Expect fourteen passing tests across the API and reporting checks. The task workspace needs the Compose or Kubernetes database.
 
 If port 3000 is in use, run `PORT=3100 ./scripts/setup.sh` and use port 3100 in the browser and health command. You can also copy `.env.example` to `.env` and set `PORT` there. The setup script binds only to `127.0.0.1`. The same teardown command works with either port.
 
@@ -95,7 +95,23 @@ npm run test:e2e
 npm run test:e2e:report
 ```
 
-Playwright uses two workers and one disposable workspace per test. The four journeys cover create, complete, delete, and recovery from a failed API call. See `playwright-report/index.html` for the HTML report and `test-results/playwright.json` for raw outcomes and retry attempts. The dashboard at `.local/playwright/dashboard.md` adds a row per recorded run and averages hosted Playwright runner duration when hosted reports are imported. Import a downloaded hosted report with `npm run test:e2e:report -- path/to/playwright.json`. Use `CI=true npm run test:e2e` locally to exercise the retry settings. It still records a local run.
+Playwright uses two workers and one disposable workspace per test. The four journeys cover create, complete, delete, and recovery from a failed API call. See `playwright-report/index.html` for the HTML report and `test-results/playwright.json` for raw outcomes and retry attempts. The dashboard at `.local/playwright/dashboard.md` adds a row per recorded run. It averages hosted Playwright runner duration and completed workflow elapsed time separately. Existing imports still work with `npm run test:e2e:report -- path/to/playwright.json`. To add full workflow elapsed time, supply completed GitHub run metadata as the optional final argument to the script. Use `CI=true npm run test:e2e` locally to exercise the retry settings. It still records a local run.
+
+Choose a completed run and an empty download directory, then import its report and run metadata. The following uses the second recorded successful run.
+
+```sh
+RUN_ID=42081792741
+RUN_DIR=".local/hosted-ci/$RUN_ID"
+mkdir -p "$RUN_DIR"
+gh run download "$RUN_ID" --repo jsayram/test-infrastructure-platform \
+  --name playwright-results --dir "$RUN_DIR"
+gh run view "$RUN_ID" --repo jsayram/test-infrastructure-platform \
+  --json databaseId,url,headSha,startedAt,updatedAt,status,conclusion,jobs > "$RUN_DIR/run.json"
+npm run test:e2e:report -- "$RUN_DIR/test-results/playwright.json" \
+  .local/playwright/history.json .local/playwright/dashboard.md "$RUN_DIR/run.json"
+```
+
+The import verifies the report's hosted source, github.com workflow URL, run ID, commit SHA, and timestamps. Full workflow elapsed time is completed-run `updatedAt - startedAt`, including setup, parallel jobs, and cleanup. The dashboard averages that duration once per workflow ID using its newest completed metadata. The artifact written during a running workflow contains Playwright runner time. Add the full duration after GitHub marks the run completed. Reimporting the same report without metadata preserves its previously imported workflow duration.
 
 See the [mobile runbook](tests/mobile/README.md) for building and testing both apps with the same Maestro 2.11.0 journey. The iOS and Android apps use simulator or emulator addresses to reach the Compose API.
 
@@ -111,7 +127,7 @@ The final verification used the pinned tools on macOS on November 5, 2026. Healt
 
 | Check | Observed result | Reproduce or inspect |
 | --- | --- | --- |
-| Node unit tests | 7 passed, 0 failed | `npm test` |
+| Node unit tests | 14 passed, 0 failed | `npm test` |
 | Compose smoke | CRUD, cross-user isolation, persistence after API restart passed | `npm run smoke -- --restart-api` |
 | Terraform | Format and validate passed, 3 mock plans passed | [AWS runbook](infra/terraform/README.md) |
 | Kubernetes | 2 API replicas ready, pod replacement and Service smoke passed | [kind runbook](infra/kubernetes/README.md) |
@@ -119,7 +135,7 @@ The final verification used the pinned tools on macOS on November 5, 2026. Healt
 | Mobile | iOS 1/1 passed in 25.47 s, Android 1/1 passed in 34.56 s, both with persisted state | [mobile runbook](tests/mobile/README.md) |
 | AI eval | Draft 3/4, worked revision 4/4, both cleanup checks passed | [worked example](tests/ai-evals/worked-example.md) |
 
-The latest recorded local Playwright runner duration was 1.18 seconds. Earlier real local runs were 3.48, 1.28, and 1.22 seconds, all with four passing tests and zero flakes. A separate temporary retry probe confirmed one retry and failure screenshot and trace capture. It was removed before the real suite was rerun. The dashboard labels source and counts every attempt. The first hosted Playwright run passed all four cases with zero failures, flakes, or retries in 2.70 seconds. The local dashboard includes this imported hosted result.
+The latest recorded local Playwright runner duration was 1.18 seconds. Earlier real local runs were 3.48, 1.28, and 1.22 seconds, all with four passing tests and zero flakes. A separate temporary retry probe confirmed one retry and failure screenshot and trace capture. It was removed before the real suite was rerun. The dashboard labels source and counts every attempt. The first hosted Playwright run passed all four cases with zero failures, flakes, or retries in 2.70 seconds. The second hosted run passed the same four cases in 1.75 seconds while the workflow took 668 seconds. The two completed workflows took 91 and 668 seconds, averaging 379.50 seconds. Their Playwright runtimes averaged 2.23 seconds. The dashboard keeps both measurements and links each completed workflow.
 
 To demo the project, start Compose, open a disposable workspace, and create and complete a task. Run the browser suite and inspect its report. Then use the kind runbook to delete an API pod and observe the replacement, or the mobile runbook to run the same task journey on a simulator.
 
@@ -149,7 +165,7 @@ The first tool and image downloads take additional time. The browser report is g
 
 The app is for synthetic test data, and the workspace name flow provides no authentication. The local Kubernetes proof uses one kind node and two API replicas. The browser suite runs four critical journeys with two workers. Mobile proof comes from local simulator and emulator runs. These measurements describe the environment that was actually exercised.
 
-The AWS resources have been validated with mock plans. A real account-backed plan, apply, endpoint check, and destroy remain pending account and cost approval. The public repository and hosted CI are available on GitHub. Future extensions include authenticated shared environments, multi-node recovery exercises, measured CI sharding, whole-workflow runtime collection, and longer report history.
+The AWS resources have been validated with mock plans. A real account-backed plan, apply, endpoint check, and destroy remain pending account and cost approval. The public repository and hosted CI are available on GitHub. Future extensions include authenticated shared environments, multi-node recovery exercises, measured CI sharding, and longer report history.
 
 The repository keeps separate native build files and runbooks so each platform can be reproduced independently. Generated dependencies, build products, reports, environment files, and Terraform state stay outside Git.
 
