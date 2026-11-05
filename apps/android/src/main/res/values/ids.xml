@@ -1,0 +1,7 @@
+<resources>
+    <item name="workspace_name" type="id" />
+    <item name="open_workspace" type="id" />
+    <item name="task_title" type="id" />
+    <item name="add_task" type="id" />
+    <item name="complete_task" type="id" />
+</resources>

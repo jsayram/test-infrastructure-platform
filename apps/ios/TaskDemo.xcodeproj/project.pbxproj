@@ -1,0 +1,99 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        A00000000000000000000001 = {
+            isa = PBXProject;
+            buildConfigurationList = A00000000000000000000002;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            knownRegions = (en, Base);
+            mainGroup = A00000000000000000000003;
+            productRefGroup = A00000000000000000000004;
+            projectDirPath = "";
+            targets = (A00000000000000000000005);
+        };
+        A00000000000000000000002 = {
+            isa = XCConfigurationList;
+            buildConfigurations = (A00000000000000000000006);
+            defaultConfigurationName = Debug;
+        };
+        A00000000000000000000003 = {
+            isa = PBXGroup;
+            children = (A00000000000000000000007, A00000000000000000000008, A00000000000000000000004);
+            sourceTree = "<group>";
+        };
+        A00000000000000000000004 = {
+            isa = PBXGroup;
+            children = (A00000000000000000000009);
+            name = Products;
+            sourceTree = "<group>";
+        };
+        A00000000000000000000005 = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = A0000000000000000000000A;
+            buildPhases = (A0000000000000000000000B);
+            buildRules = ();
+            dependencies = ();
+            name = TaskDemo;
+            productName = TaskDemo;
+            productReference = A00000000000000000000009;
+            productType = "com.apple.product-type.application";
+        };
+        A00000000000000000000006 = {
+            isa = XCBuildConfiguration;
+            buildSettings = { SDKROOT = iphonesimulator; };
+            name = Debug;
+        };
+        A00000000000000000000007 = {
+            isa = PBXFileReference;
+            lastKnownFileType = sourcecode.swift;
+            path = TaskDemo.swift;
+            sourceTree = "<group>";
+        };
+        A00000000000000000000008 = {
+            isa = PBXFileReference;
+            lastKnownFileType = text.plist.xml;
+            path = Info.plist;
+            sourceTree = "<group>";
+        };
+        A00000000000000000000009 = {
+            isa = PBXFileReference;
+            explicitFileType = wrapper.application;
+            path = TaskDemo.app;
+            sourceTree = BUILT_PRODUCTS_DIR;
+        };
+        A0000000000000000000000A = {
+            isa = XCConfigurationList;
+            buildConfigurations = (A0000000000000000000000C);
+            defaultConfigurationName = Debug;
+        };
+        A0000000000000000000000B = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (A0000000000000000000000D);
+            runOnlyForDeploymentPostprocessing = 0;
+        };
+        A0000000000000000000000C = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGNING_ALLOWED = NO;
+                INFOPLIST_FILE = Info.plist;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                PRODUCT_BUNDLE_IDENTIFIER = dev.testinfra.demo;
+                PRODUCT_NAME = TaskDemo;
+                SUPPORTED_PLATFORMS = iphonesimulator;
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = 1;
+            };
+            name = Debug;
+        };
+        A0000000000000000000000D = {
+            isa = PBXBuildFile;
+            fileRef = A00000000000000000000007;
+        };
+    };
+    rootObject = A00000000000000000000001;
+}

@@ -55,3 +55,9 @@ In Compose and kind, Nginx serves the browser files and proxies same-origin requ
 | `/api/users/:userId/tasks/:taskId` | GET, PATCH `title` or `completed`, DELETE |
 
 The PostgreSQL entrypoint runs `apps/api/schema.sql` when it initializes an empty volume. Compose keeps the database in a named volume. kind uses a persistent volume claim inside the local cluster. API pod replacement preserves the database in both cases.
+
+## End to end tests
+
+The Playwright fixtures create a fresh API workspace per test and remove it afterward. Page objects use labels, roles, and task titles for selectors. The browser error case intercepts only the task creation request, checks the UI recovery state, removes the interception, and retries the action against the real API. The CI workflow allows one retry and retains failure artifacts. Run history stores Playwright duration and outcome counts by run.
+
+Both mobile apps use the same API through the Compose web service. Maestro runs the same create and complete flow against each native app. The local Node runner seeds a disposable workspace, confirms the completed task in the real API, and removes the workspace after the run.

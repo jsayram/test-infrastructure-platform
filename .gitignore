@@ -24,6 +24,10 @@ crash.*.log
 .vscode/
 .gradle/
 DerivedData/
+*.xcresult/
+apps/android/local.properties
+*.jks
+*.keystore
 *.iml
 *.xcuserstate
 xcuserdata/

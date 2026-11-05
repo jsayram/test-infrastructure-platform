@@ -1,0 +1,37 @@
+appId: dev.testinfra.demo
+name: Create, complete, and reopen a task workspace
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: '(?:.*:id/)?workspace_name'
+- inputText: '${DEMO_NAME}'
+- tapOn:
+    id: '(?:.*:id/)?open_workspace'
+- extendedWaitUntil:
+    visible: 'No tasks yet.'
+    timeout: 10000
+- tapOn:
+    id: '(?:.*:id/)?task_title'
+- inputText: 'Calibrate instrument'
+- tapOn:
+    id: '(?:.*:id/)?add_task'
+- extendedWaitUntil:
+    visible: 'Calibrate instrument'
+    timeout: 10000
+- assertVisible: 'Open'
+- tapOn:
+    id: '(?:.*:id/)?complete_task'
+- extendedWaitUntil:
+    visible: 'Completed'
+    timeout: 10000
+- launchApp
+- tapOn:
+    id: '(?:.*:id/)?workspace_name'
+- inputText: '${DEMO_NAME}'
+- tapOn:
+    id: '(?:.*:id/)?open_workspace'
+- extendedWaitUntil:
+    visible: 'Calibrate instrument'
+    timeout: 10000
+- assertVisible: 'Completed'

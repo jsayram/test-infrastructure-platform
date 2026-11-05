@@ -22,7 +22,7 @@ In the local workflow, one Node.js process listens on loopback. It serves the fr
 | [kind](https://github.com/kubernetes-sigs/kind/releases/tag/v0.32.0) and kubectl | 0.32.0 and 1.36.1 | Runs and inspects local Kubernetes 1.36.1. |
 | [node-postgres](https://github.com/brianc/node-postgres) and [Nginx](https://nginx.org/) | 8.23.0 and 1.30.6 | Connects to PostgreSQL and serves the web UI. |
 | [ESLint](https://eslint.org/) | 10.14.0 | Checks the Node and browser code. |
-| [Playwright](https://github.com/microsoft/playwright/releases/tag/v1.64.1) | 1.64.1 | Planned for web end to end tests. |
+| [Playwright](https://github.com/microsoft/playwright/releases/tag/v1.64.1) | 1.64.1 | Runs the four browser journeys. |
 | [PostgreSQL](https://www.postgresql.org/support/versioning/) | 17.11 | Pinned for the local database and the AWS demo. |
 
 The frontend uses plain HTML and JavaScript. Health-only mode has no third party runtime dependencies. The full app runs with Docker and PostgreSQL.
@@ -76,19 +76,33 @@ Terraform defines a VPC, private ECR repository, one ECS Fargate task, private R
 
 The [AWS runbook](infra/terraform/README.md) includes credential-free validation, both real plan commands, image publishing and deployment instructions, a cost breakdown, and teardown. For the default sizes, the illustrative N. Virginia estimate is about $0.035 per hour before credits and usage-based charges. The AWS account and actual region determine coverage and rates. The demo teardown command is `terraform -chdir=infra/terraform destroy -var='resolve_api_url=false'`.
 
+## Browser and mobile tests
+
+Keep Compose running on loopback and use the pinned Node version. Install Chromium and run the browser suite.
+
+```sh
+npm ci --ignore-scripts
+npx --no-install playwright install chromium
+npm run test:e2e
+npm run test:e2e:report
+```
+
+Playwright uses two workers and one disposable workspace per test. The four journeys cover create, complete, delete, and recovery from a failed API call. See `playwright-report/index.html` for the HTML report and `test-results/playwright.json` for raw outcomes and retry attempts. The dashboard at `.local/playwright/dashboard.md` adds a row per recorded run and averages hosted Playwright runner duration when hosted reports are imported. Import a downloaded hosted report with `npm run test:e2e:report -- path/to/playwright.json`. Use `CI=true npm run test:e2e` locally to exercise the retry settings. It still records a local run.
+
+See the [mobile runbook](tests/mobile/README.md) for building and testing both apps with the same Maestro 2.11.0 journey. The iOS and Android apps use simulator or emulator addresses to reach the Compose API.
+
 ## CI and scope
 
-The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, and validates Terraform with the mocked plan tests. The same commands were verified locally. A hosted GitHub Actions run remains pending.
+The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, runs Playwright with one retry and uploads the reports and failure screenshots, and validates Terraform with the mocked plan tests. The same commands were verified locally. A hosted GitHub Actions run remains pending.
 
-This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The web browser suite, mobile automation, and AI evals are future phases.
+This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The browser suite and mobile automation use the local stack. AI evals are future work.
 
 ## Future work
 
-- **Phase 3.** Add Playwright critical journey tests, retry and timing reports, and iOS and Android apps with mobile tests.
 - **Phase 4.** Add AI assisted test drafting, an eval harness, and a human review gate.
 - **Phase 5.** Add the interview walkthrough, personal project resume bullets, and a reviewer checklist backed by actual results.
 
-The `.gitkeep` files preserve directories for later phases. The workflow and interview files will be added when they have working content.
+The remaining `.gitkeep` file preserves the AI eval directory for the next phase.
 
 ## License
 
