@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 
-const json = (status, body, headers) => ({
+export const json = (status, body, headers) => ({
   status,
-  headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
+  headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
   body: JSON.stringify(body),
 });
 
@@ -21,7 +21,7 @@ export function route(method, target) {
     return json(405, { error: 'Method not allowed' }, { allow: 'GET' });
   }
   if (path === '/health') {
-    return json(200, { status: 'ok' }, { 'cache-control': 'no-store' });
+    return json(200, { status: 'ok' });
   }
 
   const [file, mimeType] = asset;

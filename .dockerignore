@@ -1,10 +1,15 @@
 **
 !package.json
+!package-lock.json
 !apps/
 !apps/api/
 !apps/api/Dockerfile
 !apps/api/app.js
 !apps/api/server.js
+!apps/api/data-route.js
+!apps/api/store.js
 !apps/web/
+!apps/web/Dockerfile
 !apps/web/index.html
 !apps/web/app.js
+!apps/web/nginx.conf.template

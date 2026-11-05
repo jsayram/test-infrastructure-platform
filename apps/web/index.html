@@ -5,14 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Test Infrastructure Platform</title>
   <script type="module" src="/app.js"></script>
+  <style>
+    body { margin: 0; font: 1rem/1.5 system-ui, sans-serif; }
+    main { max-width: 42rem; padding: 2rem 1.25rem; margin: auto; }
+    form, li { margin-block: .75rem; }
+    label { display: block; }
+    input, button { font: inherit; padding: .3rem .55rem; margin: .15rem; }
+    li span, li button { margin-inline-end: .35rem; }
+    [role="alert"] { color: #a22020; }
+  </style>
 </head>
 <body>
   <main>
     <h1>Test Infrastructure Platform</h1>
-    <p>Check whether the local API is responding.</p>
-    <button type="button" id="check-health">Check API health</button>
-    <p id="api-status" role="status">Checking API health...</p>
-    <noscript>Enable JavaScript to check API health from this page.</noscript>
+    <p>A task list for testing with disposable demo data.</p>
+    <p id="task-error" role="alert" hidden></p>
+    <section id="sign-in" aria-labelledby="sign-in-title">
+      <h2 id="sign-in-title">Open a demo workspace</h2>
+      <p>Use a test name to create or reopen a workspace.</p>
+      <form id="sign-in-form">
+        <label for="demo-name">Demo name</label>
+        <input id="demo-name" name="name" required maxlength="40" autocomplete="off">
+        <button>Continue</button>
+      </form>
+    </section>
+
+    <section id="tasks" aria-labelledby="tasks-title" hidden>
+      <h2 id="tasks-title">Tasks</h2>
+      <p id="active-user"></p>
+      <button id="sign-out" type="button">Switch workspace</button>
+      <form id="task-form">
+        <label for="task-title">Task title</label>
+        <input id="task-title" name="title" required maxlength="100" autocomplete="off">
+        <button>Add task</button>
+      </form>
+      <p id="empty-list">No tasks yet.</p>
+      <ul id="task-list" aria-label="Task list"></ul>
+    </section>
+
+    <details open>
+      <summary>API status</summary>
+      <button type="button" id="check-health">Check API health</button>
+      <p id="api-status" role="status">Checking API health...</p>
+    </details>
+    <noscript>Enable JavaScript to use the task workspace.</noscript>
   </main>
 </body>
 </html>

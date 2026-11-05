@@ -1,6 +1,6 @@
 # Phase 1 AWS demo
 
-This stack runs the project's existing health API on one Linux ARM64 Fargate task. RDS PostgreSQL and an S3 artifact bucket are provisioned independently of the API. The health probe checks HTTP only. The app will start using PostgreSQL in Phase 2.
+This stack runs the project's existing health API on one Linux ARM64 Fargate task. RDS PostgreSQL and an S3 artifact bucket are provisioned independently of the API. The health probe checks HTTP only. The full local task app uses PostgreSQL in Compose and kind. The AWS demo does not pass database credentials to ECS.
 
 The stack has two public subnets for ECS and two isolated database subnets across two availability zones. The task's public IPv4 address supports outbound HTTPS for image pulls and logs. Its inbound HTTP port allows one approved reviewer address. The database has no public address. Its only inbound rule allows PostgreSQL from the task security group. RDS creates and manages the master password in Secrets Manager. The app and Terraform never read the password.
 

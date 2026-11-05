@@ -21,9 +21,37 @@ flowchart LR
     Reviewer["Reviewer IPv4"] -->|"HTTP health probe"| Task["Single Fargate task"]
     Registry["Private ECR"] -->|"Image pull"| Task
     Task -->|"Process logs"| Logs["CloudWatch Logs"]
-    Task -. "Network access for Phase 2" .-> DB["Private RDS PostgreSQL"]
+    Task -. "Scoped PostgreSQL network path" .-> DB["Private RDS PostgreSQL"]
     RDSSecret["Secrets Manager"] --- DB
     Artifacts["Private S3 artifact bucket"]
 ```
 
-Terraform defines the resources and dependency order. The Fargate task runs the same HTTP server as the local workflow. Its IP can change when ECS replaces it. The database and artifact bucket are provisioned for the demo and are unused by the health route. A local Kubernetes cluster will provide the Kubernetes proof without an EKS control plane. See the [AWS runbook](infra/terraform/README.md) for deployment and teardown.
+Terraform defines the resources and dependency order. The Fargate task runs the same HTTP server as the local workflow. Its IP can change when ECS replaces it. The database and artifact bucket are defined for the AWS demo. The health route does not use either service. A local Kubernetes cluster will provide the Kubernetes proof without an EKS control plane. See the [AWS runbook](infra/terraform/README.md) for deployment and teardown.
+
+## Local app and verification flow
+
+```mermaid
+flowchart LR
+    Commit["Commit pushed to GitHub"] --> Lint["Lint and unit tests"]
+    Lint --> Images["Build API and web images"]
+    Images --> Smoke["Compose smoke and API restart"]
+    Commit --> Terraform["Terraform format, validate and mock plan"]
+    Source["Local source"] --> LocalImages["Build and load into kind"]
+    LocalImages --> Deploy["Deploy and wait for readiness"]
+    Deploy --> Recovery["Delete one API pod and observe replacement"]
+```
+
+GitHub Actions defines the checks on every push. The workflow builds and tests images on its runner. The separate local Kubernetes path builds from the same Dockerfiles, loads those images into kind, and deploys the manifests with kubectl.
+
+In Compose and kind, Nginx serves the browser files and proxies same-origin requests to the API Service. The API uses one small PostgreSQL pool per replica. Parameterized SQL handles user and task CRUD. Every task lookup and mutation includes the owning user ID. The name-based workspace is for synthetic data and provides no authentication. The database schema supplies UUIDs, unique names, and cascading task deletion when a demo user is removed.
+
+| Route | Methods |
+| --- | --- |
+| `/health` | GET checks that the API process can serve HTTP |
+| `/ready` | GET checks that the API can query the schema |
+| `/api/users` | POST creates a user, GET looks up a user by `?name=` |
+| `/api/users/:userId` | GET, PATCH name, DELETE user and tasks |
+| `/api/users/:userId/tasks` | GET list, POST create a task with `title` |
+| `/api/users/:userId/tasks/:taskId` | GET, PATCH `title` or `completed`, DELETE |
+
+The PostgreSQL entrypoint runs `apps/api/schema.sql` when it initializes an empty volume. Compose keeps the database in a named volume. kind uses a persistent volume claim inside the local cluster. API pod replacement preserves the database in both cases.
