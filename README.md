@@ -1,6 +1,8 @@
 # Test Infrastructure Platform
 
-This is Jose Ramirez's personal portfolio project built to demonstrate test infrastructure skills. It combines a small PostgreSQL task app with containers, local Kubernetes, browser and mobile tests, and local AI test drafting with a human review gate. All evidence described below was collected locally.
+This is Jose Ramirez's personal portfolio project built to demonstrate test infrastructure skills. It combines a small PostgreSQL task app with containers, local Kubernetes, browser and mobile tests, and local AI test drafting with a human review gate. Local verification and the first successful hosted GitHub Actions run are documented below.
+
+[![CI](https://github.com/jsayram/test-infrastructure-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/jsayram/test-infrastructure-platform/actions/workflows/ci.yml)
 
 ## Problem
 
@@ -33,9 +35,11 @@ The frontend uses plain HTML and JavaScript. Health-only mode has no third party
 
 ## Run the full app locally
 
-Install the pinned Node and Docker tools. Start the stack from the repository root with a disposable password for a fresh database volume.
+Clone the public repository, install the pinned Node and Docker tools, and start the stack with a disposable password for a fresh database volume.
 
 ```sh
+git clone https://github.com/jsayram/test-infrastructure-platform.git
+cd test-infrastructure-platform
 nvm install
 nvm use
 npm ci --ignore-scripts
@@ -115,13 +119,15 @@ The final verification used the pinned tools on macOS on November 5, 2026. Healt
 | Mobile | iOS 1/1 passed in 25.47 s, Android 1/1 passed in 34.56 s, both with persisted state | [mobile runbook](tests/mobile/README.md) |
 | AI eval | Draft 3/4, worked revision 4/4, both cleanup checks passed | [worked example](tests/ai-evals/worked-example.md) |
 
-The latest recorded Playwright runner duration was 1.18 seconds. Earlier real local runs were 3.48, 1.28, and 1.22 seconds, all with four passing tests and zero flakes. A separate temporary retry probe confirmed one retry and failure screenshot and trace capture. It was removed before the real suite was rerun. The dashboard labels source and counts every attempt. Hosted CI runtime remains pending.
+The latest recorded local Playwright runner duration was 1.18 seconds. Earlier real local runs were 3.48, 1.28, and 1.22 seconds, all with four passing tests and zero flakes. A separate temporary retry probe confirmed one retry and failure screenshot and trace capture. It was removed before the real suite was rerun. The dashboard labels source and counts every attempt. The first hosted Playwright run passed all four cases with zero failures, flakes, or retries in 2.70 seconds. The local dashboard includes this imported hosted result.
 
 To demo the project, start Compose, open a disposable workspace, and create and complete a task. Run the browser suite and inspect its report. Then use the kind runbook to delete an API pod and observe the replacement, or the mobile runbook to run the same task journey on a simulator.
 
 ## CI and scope
 
-The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, runs Playwright with one retry and uploads the reports and failure screenshots, and validates Terraform with the mocked plan tests. The same commands were verified locally. A hosted GitHub Actions run remains pending.
+The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, runs Playwright with one retry and uploads the reports and failure screenshots, and validates Terraform with the mocked plan tests. The commands passed locally and in the [first hosted CI run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333). The run verified source commit `514a3a8`. GitHub recorded 1 minute 31 seconds from run start to completion, with the app job taking 1 minute 26 seconds and the parallel Terraform job 17 seconds. These are measurements from one hosted run.
+
+Download the [Playwright report artifact](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333/artifacts/13440093704) to inspect its HTML report, raw JSON, and dashboard. GitHub requires sign-in to download artifacts. The workflow retains artifacts for seven days. Regenerate reports with the documented commands after they expire.
 
 This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The browser suite and mobile automation use the local stack. AI evals run against the local stack and the pinned local model.
 
@@ -137,13 +143,13 @@ With the pinned prerequisites installed and images available, use the full local
 - [ ] Read the [two-minute walkthrough](docs/interview-walkthrough.md) and [personal-project resume bullets](docs/resume-bullets.md).
 - [ ] Tear down the Compose stack with `docker compose down --volumes`.
 
-The first tool and image downloads take additional time. The browser report is generated locally and is ignored by Git. The [CI workflow](.github/workflows/ci.yml) is ready for an authorized push. A hosted run and its artifact link remain pending.
+The first tool and image downloads take additional time. The browser report is generated locally and is ignored by Git. The [CI workflow](.github/workflows/ci.yml), [successful hosted run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333), and [downloadable report](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333/artifacts/13440093704) provide public verification links.
 
 ## Honest scope and future work
 
 The app is for synthetic test data, and the workspace name flow provides no authentication. The local Kubernetes proof uses one kind node and two API replicas. The browser suite runs four critical journeys with two workers. Mobile proof comes from local simulator and emulator runs. These measurements describe the environment that was actually exercised.
 
-The AWS resources have been validated with mock plans. A real account-backed plan, apply, endpoint check, and destroy remain pending account and cost approval. Hosted GitHub Actions verification and public publication also remain pending. Future extensions include authenticated shared environments, multi-node recovery exercises, measured CI sharding, whole-workflow runtime collection, and longer report history.
+The AWS resources have been validated with mock plans. A real account-backed plan, apply, endpoint check, and destroy remain pending account and cost approval. The public repository and hosted CI are available on GitHub. Future extensions include authenticated shared environments, multi-node recovery exercises, measured CI sharding, whole-workflow runtime collection, and longer report history.
 
 The repository keeps separate native build files and runbooks so each platform can be reproduced independently. Generated dependencies, build products, reports, environment files, and Terraform state stay outside Git.
 

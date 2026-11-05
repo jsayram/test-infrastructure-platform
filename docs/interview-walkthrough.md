@@ -10,7 +10,7 @@ I used Terraform to describe the AWS resources and their dependencies because a 
 
 For Kubernetes, I used kind locally. I deployed two API replicas, deleted one pod, and watched a new ready pod replace it while the other kept running. The database volume stayed bound. That demonstrates the desired-state controller and Service routing with a small, inspectable setup.
 
-Playwright covers four journeys with page objects and one isolated workspace per test. The reports record failures, retries, flakes, and runner duration. The SwiftUI and Kotlin clients use the same API, and Maestro verifies create, complete, and persisted state on both local platforms.
+Playwright covers four journeys with page objects and one isolated workspace per test. The reports record failures, retries, flakes, and runner duration. The first hosted GitHub Actions run passed the app and Terraform jobs. The SwiftUI and Kotlin clients use the same API, and Maestro verifies create, complete, and persisted state on both local platforms.
 
 The AI example uses a local model to draft a constrained test recipe. Its first candidate passed the healthy app but missed a completion regression and scored 3/4. The worked revision checked Completed and scored 4/4. It stays in review until a person approves the exact evaluated candidate. AI drafts, humans verify, metrics decide.
 
@@ -26,7 +26,7 @@ The AI example uses a local model to draft a constrained test recipe. Its first 
 
 The cloud demo uses Fargate to run the container and local kind for the Kubernetes proof. This keeps an EKS control plane out of the demo cost. The direct Fargate task IP can change on replacement, so the runbook includes address refresh and teardown steps.
 
-The name-based workspace is for synthetic demo data and provides no authentication. PostgreSQL runs as one local instance. The local kind cluster has one node. The observed browser runtime measures the Playwright runner. Hosted CI duration and AWS deployment evidence require separate authorized runs.
+The name-based workspace is for synthetic demo data and provides no authentication. PostgreSQL runs as one local instance. The local kind cluster has one node. The observed browser runtime measures the Playwright runner. The first hosted workflow took 1 minute 31 seconds. AWS deployment evidence still requires a separately authorized run.
 
 ## At ten times the workload
 
