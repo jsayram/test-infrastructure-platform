@@ -7,11 +7,12 @@
   },
   "scripts": {
     "test": "node --test apps/api/app.test.js",
-    "lint": "eslint apps/api apps/web scripts/smoke.mjs tests/playwright tests/mobile/run.mjs eslint.config.js",
+    "lint": "eslint apps/api apps/web scripts/smoke.mjs tests/playwright tests/ai-evals tests/mobile/run.mjs eslint.config.js",
     "smoke": "node scripts/smoke.mjs",
     "test:e2e": "playwright test --config=tests/playwright/playwright.config.js",
     "test:e2e:report": "node tests/playwright/history.mjs",
-    "test:mobile": "node tests/mobile/run.mjs"
+    "test:mobile": "node tests/mobile/run.mjs",
+    "test:ai": "node tests/ai-evals/workflow.mjs"
   },
   "dependencies": {
     "pg": "8.23.0"

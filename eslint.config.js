@@ -4,7 +4,7 @@ import globals from 'globals';
 export default [
   js.configs.recommended,
   {
-    files: ['apps/api/**/*.js', 'scripts/**/*.mjs', 'tests/playwright/**/*.{js,mjs}', 'tests/mobile/run.mjs'],
+    files: ['apps/api/**/*.js', 'scripts/**/*.mjs', 'tests/playwright/**/*.{js,mjs}', 'tests/mobile/run.mjs', 'tests/ai-evals/**/*.{js,mjs}'],
     languageOptions: { globals: globals.node },
   },
   {

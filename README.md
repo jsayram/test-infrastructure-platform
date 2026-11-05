@@ -95,11 +95,10 @@ See the [mobile runbook](tests/mobile/README.md) for building and testing both a
 
 The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, runs Playwright with one retry and uploads the reports and failure screenshots, and validates Terraform with the mocked plan tests. The same commands were verified locally. A hosted GitHub Actions run remains pending.
 
-This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The browser suite and mobile automation use the local stack. AI evals are future work.
+This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The browser suite and mobile automation use the local stack. AI evals run against the local stack and the pinned local model.
 
 ## Future work
 
-- **Phase 4.** Add AI assisted test drafting, an eval harness, and a human review gate.
 - **Phase 5.** Add the interview walkthrough, personal project resume bullets, and a reviewer checklist backed by actual results.
 
 The remaining `.gitkeep` file preserves the AI eval directory for the next phase.

@@ -1,0 +1,1 @@
+Complete a task using the Complete button. The existing check confirms the title stays visible after the action. The acceptance criterion also requires the task row to switch to Completed.
