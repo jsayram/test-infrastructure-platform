@@ -23,6 +23,8 @@ Generation writes `recipe.json` and a readable `draft.spec.js` into `.local/ai-e
 
 ## Worked revision
 
+The complete [worked example](worked-example.md) includes the actual model recipe, rendered draft, observed scores, and full revised candidate.
+
 The example requires the task to switch to Completed and stay visible. The local model returned `{"journey":"complete","observation":"visible"}`. The generated test clicked Complete and asserted that the row was still visible. It passed against the healthy app and also passed when the eval rewrote the PATCH response to report `completed: false`. Both workspaces were deleted. The draft scored **3/4** because it missed the regression.
 
 The worked revision changed `observation` to `completed` in `recipe.json`. It rendered this final assertion.
