@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { route } from './app.js';
 
-const host = '127.0.0.1';
+const host = process.env.BIND_HOST ?? '127.0.0.1';
 const port = Number(process.env.PORT ?? '3000');
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
   console.error('PORT must be an integer from 1024 to 65535.');

@@ -31,7 +31,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-nohup node --env-file-if-exists=.env "$server" >"$state/server.log" 2>&1 </dev/null &
+BIND_HOST=127.0.0.1 nohup node --env-file-if-exists=.env "$server" >"$state/server.log" 2>&1 </dev/null &
 pid=$!
 printf '%s\n' "$pid" >"$state/pid"
 
