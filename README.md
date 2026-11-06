@@ -1,106 +1,154 @@
 # Test Infrastructure Platform
 
-This is Jose Ramirez's personal portfolio project built to demonstrate test infrastructure skills. It combines a small PostgreSQL task app with containers, local Kubernetes, browser and mobile tests, and local AI test drafting with a human review gate. Local verification and the first successful hosted GitHub Actions run are documented below.
-
 [![CI](https://github.com/jsayram/test-infrastructure-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/jsayram/test-infrastructure-platform/actions/workflows/ci.yml)
+
+Jose Ramirez's personal portfolio project demonstrating reproducible test environments, CI, browser and mobile automation, and evaluation of AI-generated tests. This is independent personal work, not Abbott production work.
+
+The application is a small task manager with a web UI and native iOS and Android clients. Open a synthetic workspace, create a task, mark it complete, and delete it on the web. The infrastructure around those actions is the focus: repeatable containers, isolated test data, useful failure evidence, local Kubernetes recovery, and a human gate for AI drafts.
+
+**Start here:** [Requirements](#what-you-need) | [Run the app](#run-the-full-app-locally) | [Run tests](#browser-and-unit-tests) | [Clean up](#stop-and-clean-up) | [Demo](#review-in-five-minutes) | [Verified results](#verification-results)
 
 ## Problem
 
-A test setup is hard to trust if a fresh checkout behaves differently from the developer's machine. This project starts with a versioned runtime, a known health response, and commands to start, test, and stop the app. The app stays small so the infrastructure and the evidence it produces are easy to inspect.
+A passing test is useful when another engineer can reproduce its environment and understand what it actually checked. This project makes the environment, tests, and evidence inspectable in one repository. A code change goes through lint, unit tests, real container builds, API smoke tests, and four browser journeys in GitHub Actions.
+
+The public repository shares source and CI evidence. The application itself runs locally; there is no hosted public app and no AWS deployment requirement.
 
 ## Architecture overview
 
-Docker Compose runs an Nginx web client, a Node.js API, and PostgreSQL. The browser uses same-origin API requests through the web proxy. SwiftUI and Kotlin clients call the same API from local simulators and emulators. kind runs two API replicas behind a Service. Terraform defines a separate AWS health demo using ECS Fargate. See [ARCHITECTURE.md](ARCHITECTURE.md) for the request and verification flows.
+The default demo runs three services with Docker Compose. Only the web service is published on the host, bound to loopback. PostgreSQL and the API stay on the container network.
+
+```text
+Browser / Playwright ----+
+                        |
+iOS Simulator ----------+--> 127.0.0.1:8080
+                        |         |
+Android Emulator -------+         v
+  via 10.0.2.2:8080        Nginx web container
+                          serves HTML + JavaScript
+                          proxies /api, /health, /ready
+                                  |
+                                  v
+                           Node.js API container
+                                  |
+                                  v
+                           PostgreSQL container
+                                  |
+                                  v
+                           Named database volume
+```
+
+Local Kubernetes is a separate deployment of the same images. The [kind runbook](infra/kubernetes/README.md) uses one node, a web pod, two API replicas behind a Service, and PostgreSQL with a persistent volume claim. A port forward exposes its web Service on `127.0.0.1:8081`. Deleting one API pod demonstrates replacement while the other replica remains ready.
+
+```text
+Push to GitHub
+     |
+     +--> App job: lint -> unit tests -> build containers
+     |                              -> Compose smoke + API restart
+     |                              -> Playwright -> report artifact
+     |
+     +--> Terraform job: fmt -> init -> validate -> 3 mocked plans
+
+Local optional demos: kind recovery | iOS/Android + Maestro | AI evals
+Terraform configuration: local validation only; no AWS resources created
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for API routes and implementation details. CI tests container images; it does not deploy them to AWS or Kubernetes.
+
+## What you need
+
+For the web demo and browser tests:
+
+- macOS or Linux, a shell with Bash, Git, `curl`, and `openssl`. The full local verification ran on macOS; core CI runs on Ubuntu 24.04. Native Windows execution has not been verified.
+- Node.js **22.23.1** with its bundled npm. [Install the pinned Node release](https://nodejs.org/en/download/archive/v22.23.1), or use an existing nvm installation with the commands below. This repository does not install nvm.
+- A running Docker Engine **29.9.2**, Compose **5.6.1**, and Buildx **0.38.1**. Confirm with `docker version`, `docker compose version`, and `docker buildx version`.
+- Internet access for the first dependency, container-image, and Chromium downloads. The initial setup takes longer than the prepared demo.
+
+PostgreSQL and Nginx run in containers; no host database installation is needed. No AWS account, cloud credentials, paid AI API, or device farm is needed. Optional tools are listed below; install only those needed for the demo you choose.
 
 ## Tech stack and version pins
 
-| Tool | Version | Scope |
+| Tool | Version | What it does here |
 | --- | --- | --- |
-| [Node.js](https://nodejs.org/en/download/archive/v22.23.1) | 22.23.1 | Local HTTP server and built-in test runner. Pinned in `.nvmrc` and `package.json`. |
-| [Terraform](https://releases.hashicorp.com/terraform/1.17.1/) | 1.17.1 | AWS infrastructure configuration and mock plans. |
-| [Terraform AWS provider](https://github.com/hashicorp/terraform-provider-aws/tree/v6.64.0/website/docs) | 6.64.0 | AWS resource definitions. |
-| [Docker](https://docs.docker.com/engine/release-notes/29/#2992) | 29.9.2 | Builds the API and web images with Buildx 0.38.1. |
-| [Docker Compose](https://github.com/docker/compose/releases/tag/v5.6.1) | 5.6.1 | Runs the three local services. |
-| [kind](https://github.com/kubernetes-sigs/kind/releases/tag/v0.32.0) and kubectl | 0.32.0 and 1.36.1 | Runs and inspects local Kubernetes 1.36.1. |
-| [node-postgres](https://github.com/brianc/node-postgres) and [Nginx](https://nginx.org/) | 8.23.0 and 1.30.6 | Connects to PostgreSQL and serves the web UI. |
-| [ESLint](https://eslint.org/) | 10.14.0 | Checks the Node and browser code. |
-| [Playwright](https://github.com/microsoft/playwright/releases/tag/v1.64.1) | 1.64.1 | Runs the four browser journeys. |
-| [PostgreSQL](https://www.postgresql.org/support/versioning/) | 17.11 | Pinned for the local database and the AWS demo. |
-| Xcode and iOS Simulator | 27.1 and 26.5 | Builds and runs the SwiftUI client locally. |
-| Gradle, Android Gradle Plugin, Kotlin | 8.13, 8.13.2, 2.2.21 | Builds the Android client with SDK 35 for an API 32 emulator. |
-| Temurin JDK and Maestro | 21.0.11+10 and 2.11.0 | Runs the shared local mobile journey. |
-| Ollama | 0.40.11 | Drafts with a pinned local Llama 3.2 digest documented in the eval runbook. |
+| Node.js / plain HTML and JavaScript | 22.23.1 | API, web UI, scripts, and built-in unit test runner. |
+| Docker / Buildx / Compose | 29.9.2 / 0.38.1 / 5.6.1 | Build separate API and web images; start the local stack. |
+| PostgreSQL / node-postgres / Nginx | 17.11 / 8.23.0 / 1.30.6 | Persist tasks, query the database, and serve/proxy the web UI. |
+| ESLint / Playwright | 10.14.0 / 1.64.1 | Lint source and test four browser journeys. |
+| kind / kubectl / Kubernetes | 0.32.0 / 1.36.1 / 1.36.1 | Exercise two API replicas, recovery, and rollouts locally. |
+| Terraform / AWS provider | 1.17.1 / 6.64.0 | Validate the AWS infrastructure configuration with mocked plans. |
+| SwiftUI / Xcode / iOS Simulator | Xcode 27.1 / iOS 26.5 | Native iOS task client and local simulator proof. |
+| Gradle / Android Gradle Plugin / Kotlin | 8.13 / 8.13.2 / 2.2.21 | Build the native Android task client. |
+| Android SDK / Build Tools / test emulator | 35 / 35.0.0 / API 32 | Compile Android and run the local mobile journey. |
+| Temurin JDK / Maestro | 21.0.11+10 / 2.11.0 | Run one shared create/complete/reopen flow on both mobile platforms. |
+| Ollama / local Llama 3.2 | 0.40.11 / pinned model digest | Draft constrained test recipes without a paid model API. |
 
-The frontend uses plain HTML and JavaScript. Health-only mode has no third party runtime dependencies. The full app runs with Docker and PostgreSQL.
+Runtime and package pins are in `.nvmrc`, `package.json`, and the lockfile. Container base images and CI actions use immutable digests or commit SHAs. Native build pins and the exact model digest are in their linked runbooks. Python is not required.
 
 ## Run the full app locally
 
-Clone the public repository, install the pinned Node and Docker tools, and start the stack with a disposable password for a fresh database volume.
+From a fresh checkout, select Node 22.23.1 and install dependencies. If using nvm, run `nvm install` and `nvm use` after entering the repository; otherwise select the pinned Node installation yourself.
 
 ```sh
 git clone https://github.com/jsayram/test-infrastructure-platform.git
 cd test-infrastructure-platform
-nvm install
-nvm use
+node --version
 npm ci --ignore-scripts
 export POSTGRES_PASSWORD="$(openssl rand -hex 24)"
 docker compose up --build --wait
+curl --fail --silent --show-error http://127.0.0.1:8080/health
+```
+
+Expect `v22.23.1` from Node and `{"status":"ok"}` from the health endpoint. `docker compose ps` should show the database, API, and web services healthy. `curl -fsS http://127.0.0.1:8080/ready` also checks database readiness.
+
+Open **http://127.0.0.1:8080/** and use the UI:
+
+1. Enter a synthetic demo name and select **Continue** to create or reopen its workspace.
+2. Enter a task title and select **Add task**.
+3. Select **Complete** or **Reopen**, then **Delete** to remove a task.
+4. Select **Switch workspace** to return to workspace entry. Use **Check API health** to inspect the API status.
+
+The demo name selects test data and provides no authentication. Use synthetic names and tasks only. Reopening a workspace reloads its persisted tasks.
+
+Run the API smoke check while Compose remains up:
+
+```sh
 npm run smoke -- --restart-api
 ```
 
-Open http://127.0.0.1:8080/. Enter a demo name to open its workspace, then create, complete, and delete a task. Use synthetic names only. The demo name selects a test workspace without authentication. The web service is the only service published on the host, and it binds to loopback. The smoke test exercises the same HTTP API, checks that a task ID cannot be accessed through a different user route, and checks that a completed task survives an API restart.
+It verifies CRUD, cross-workspace task isolation, and persistence after restarting the API. Keep Compose running while you use the demo and run browser tests. Keep this shell and its disposable database password for smoke checks and teardown.
 
-Stop the stack from the same shell with the same database password. This command deletes the demo volume.
+If port 8080 is occupied, export `WEB_PORT=8082` and `BASE_URL=http://127.0.0.1:8082` before starting Compose and running tests. The mobile runbook uses the default port 8080. For startup problems, inspect `docker compose ps` and `docker compose logs --tail=50 api db web`; verify Docker is running and the password is set.
 
-```sh
-docker compose down --volumes
-unset POSTGRES_PASSWORD
-```
+## Browser and unit tests
 
-A plain `docker compose down` retains the database volume and expects the same password on the next startup. Use the generated password only on your machine. If you save it in a local `.env` file, Git ignores that file. Use `WEB_PORT=8082` to select another host port and `BASE_URL=http://127.0.0.1:8082` when you run the smoke test.
-
-See the [Kubernetes runbook](infra/kubernetes/README.md) for deployment, logs, API pod replacement, image updates, and cluster teardown.
-
-## Health-only mode
-
-Use macOS or Linux with Bash and Node.js 22.23.1. If you have nvm, install and select the version from the repository root with `nvm install` and `nvm use`. The Node.js download linked above is another way to install the same version.
-
-Run these commands from the repository root.
+Run from the repository root. Unit tests do not need a running database. Browser and smoke tests require the Compose stack above.
 
 ```sh
-./scripts/setup.sh
-curl --fail --silent --show-error http://127.0.0.1:3000/health
+npm run lint
 npm test
-./scripts/teardown.sh
-```
-
-Setup prints `Listening at http://127.0.0.1:3000`. Open that address before teardown and confirm the page displays **API is healthy.** The health command returns HTTP 200 and `{"status":"ok"}`. The unit tests cover the health response, the public route boundary, and the data API input and ownership rules. Expect fourteen passing tests across the API and reporting checks. The task workspace needs the Compose or Kubernetes database.
-
-If port 3000 is in use, run `PORT=3100 ./scripts/setup.sh` and use port 3100 in the browser and health command. You can also copy `.env.example` to `.env` and set `PORT` there. The setup script binds only to `127.0.0.1`. The same teardown command works with either port.
-
-## AWS demo
-
-Terraform defines a VPC, private ECR repository, one ECS Fargate task, private RDS PostgreSQL instance, private S3 artifact bucket, and scoped execution IAM. ECS Fargate provides the cloud container proof without maintaining EC2 workers. The local kind cluster demonstrates replicas and rollouts without the cost of an EKS control plane.
-
-The [AWS runbook](infra/terraform/README.md) includes credential-free validation, both real plan commands, image publishing and deployment instructions, a cost breakdown, and teardown. For the default sizes, the illustrative N. Virginia estimate is about $0.035 per hour before credits and usage-based charges. The AWS account and actual region determine coverage and rates. The demo teardown command is `terraform -chdir=infra/terraform destroy -var='resolve_api_url=false'`.
-
-## Browser and mobile tests
-
-Keep Compose running on loopback and use the pinned Node version. Install Chromium and run the browser suite.
-
-```sh
-npm ci --ignore-scripts
 npx --no-install playwright install chromium
 npm run test:e2e
 npm run test:e2e:report
 ```
 
-Playwright uses two workers and one disposable workspace per test. The four journeys cover create, complete, delete, and recovery from a failed API call. See `playwright-report/index.html` for the HTML report and `test-results/playwright.json` for raw outcomes and retry attempts. The dashboard at `.local/playwright/dashboard.md` adds a row per recorded run. It averages hosted Playwright runner duration and completed workflow elapsed time separately. Existing imports still work with `npm run test:e2e:report -- path/to/playwright.json`. To add full workflow elapsed time, supply completed GitHub run metadata as the optional final argument to the script. Use `CI=true npm run test:e2e` locally to exercise the retry settings. It still records a local run.
+On Linux, use `npx --no-install playwright install --with-deps chromium` for missing browser system libraries; installing those OS packages may require administrator access. The recorded suite has four journeys: create, complete, delete, and recover from an API error. Page objects share role and label selectors. Two workers use a fresh synthetic workspace per test and remove it afterward.
 
-Choose a completed run and an empty download directory, then import its report and run metadata. The following uses the second recorded successful run.
+Inspect these generated local files; they are ignored by Git:
+
+| File | Contents |
+| --- | --- |
+| `playwright-report/index.html` | Browser test report; open it locally. |
+| `test-results/playwright.json` | Outcomes, runtime, and retry attempts. |
+| `.local/playwright/dashboard.md` | Run history, pass/fail/flake counts, and timing averages. |
+
+CI retries a failed browser test once and retains failure screenshots and traces. `CI=true npm run test:e2e` exercises that retry setting locally and still records a local run. A retry is recorded rather than silently counted as an initial pass.
+
+### Import completed CI timing
+
+The dashboard separates Playwright runner time from completed workflow elapsed time. GitHub CLI (`gh`) and GitHub sign-in are needed only to download hosted artifacts. Choose a successful completed run whose `playwright-results` artifact has not expired and an empty download directory. This example uses the verified main run.
 
 ```sh
-RUN_ID=42081792741
+RUN_ID=42104343998
 RUN_DIR=".local/hosted-ci/$RUN_ID"
 mkdir -p "$RUN_DIR"
 gh run download "$RUN_ID" --repo jsayram/test-infrastructure-platform \
@@ -111,63 +159,107 @@ npm run test:e2e:report -- "$RUN_DIR/test-results/playwright.json" \
   .local/playwright/history.json .local/playwright/dashboard.md "$RUN_DIR/run.json"
 ```
 
-The import verifies the report's hosted source, github.com workflow URL, run ID, commit SHA, and timestamps. Full workflow elapsed time is completed-run `updatedAt - startedAt`, including setup, parallel jobs, and cleanup. The dashboard averages that duration once per workflow ID using its newest completed metadata. The artifact written during a running workflow contains Playwright runner time. Add the full duration after GitHub marks the run completed. Reimporting the same report without metadata preserves its previously imported workflow duration.
+The optional final argument verifies hosted provenance, workflow URL and ID, commit SHA, completed state, and timestamps. Workflow elapsed time is completed-run `updatedAt - startedAt`, including setup, parallel jobs, and cleanup. Averages count each workflow ID once using its newest metadata. The in-workflow artifact contains runner timing; add full elapsed time after completion. Existing report-only imports still work, and reimporting without metadata preserves previously imported workflow timing.
 
-See the [mobile runbook](tests/mobile/README.md) for building and testing both apps with the same Maestro 2.11.0 journey. The iOS and Android apps use simulator or emulator addresses to reach the Compose API.
+## Stop and clean up
+
+After the demo and tests, run these commands in the same shell used to start Compose:
+
+```sh
+docker compose down --volumes
+unset POSTGRES_PASSWORD
+```
+
+This deletes the demo database volume. Plain `docker compose down` retains the volume and requires its original password on the next startup. Real `.env` files are ignored; [`.env.example`](.env.example) contains placeholders only.
+
+## Optional demos and requirements
+
+| Demo | Additional tools and instructions |
+| --- | --- |
+| Local Kubernetes | Install kind and kubectl versions above. The [kind runbook](infra/kubernetes/README.md) covers deployment, pod deletion/recovery, logs, image rollout, and cluster teardown. |
+| iOS | macOS, Xcode 27.1, iOS 26.5 runtime, Maestro, and JDK. The [mobile runbook](tests/mobile/README.md#ios) builds a simulator target without signing and removes the dedicated simulator afterward. |
+| Android | JDK, Gradle, Android SDK and emulator, and Maestro. The [mobile runbook](tests/mobile/README.md#android) covers SDK paths, APK installation, create/complete proof, and emulator shutdown. |
+| AI test drafting | Ollama 0.40.11 with the exact local model digest, Chromium, and Compose. Follow the [AI runbook](tests/ai-evals/README.md) to generate, evaluate, review, and preview promotion. |
+| Terraform | Terraform 1.17.1; no AWS credentials required for the local commands below. See the [infrastructure runbook](infra/terraform/README.md#verify-without-aws-access). |
+
+### Health-only mode
+
+For the original API health proof without Docker or a database, use Node 22.23.1 and Bash from the repository root:
+
+```sh
+./scripts/setup.sh
+curl --fail --silent --show-error http://127.0.0.1:3000/health
+./scripts/teardown.sh
+```
+
+Open `http://127.0.0.1:3000/` before teardown to see the health UI. This mode does not support persistent task workspaces. Use `PORT=3100 ./scripts/setup.sh` if port 3000 is occupied, then probe port 3100. The same teardown command stops it.
+
+### Terraform without deployment
+
+```sh
+terraform -chdir=infra/terraform init -backend=false -input=false
+terraform -chdir=infra/terraform fmt -check -recursive
+terraform -chdir=infra/terraform validate
+terraform -chdir=infra/terraform test
+```
+
+Terraform defines VPC networking, ECR, ECS Fargate, private RDS PostgreSQL, S3, and scoped IAM. These checks download the pinned provider and use simulated AWS values; they create no cloud resources. Live AWS planning and deployment are outside the requested project scope and have not been run. The retained runbook describes a possible cloud health demo, not evidence of an executed deployment. Fargate was chosen for that design to avoid an EKS control plane; Kubernetes proof runs locally with kind. Local verification incurs no cloud charges.
 
 ## AI drafts, humans verify, metrics decide
 
-The local model proposes a constrained test recipe. The renderer uses shared page objects and a fresh synthetic workspace. The eval runs the candidate against the healthy app and a controlled regression, then scores execution, intended behavior, selector stability, and cleanup.
+The local model selects a constrained journey and observation. A deterministic renderer supplies the shared page objects and isolated workspace fixture. Evaluation checks execution, intended behavior under a controlled regression, selector stability, and cleanup.
 
-The actual completion draft scored 3/4 because it checked only that the title stayed visible. The worked revision checked Completed and scored 4/4. The candidate remains in review until a person approves its exact evaluated digest. See the [full worked example](tests/ai-evals/worked-example.md) and [generator, eval, and review commands](tests/ai-evals/README.md).
+The actual draft scored **3/4**: its assertion checked that a task stayed visible and missed a broken completion response. The worked revision checked **Completed** and scored **4/4**. Neither was silently added to the main suite. The candidate remains outside the suite until a person reviews and approves its exact evaluated digest. Read the full [worked example](tests/ai-evals/worked-example.md) and [human review gate](tests/ai-evals/README.md#human-review-gate).
 
-## Local verification results
+## Verification results
 
-The final verification used the pinned tools on macOS on November 5, 2026. Health-only startup and teardown, lint, workflow syntax, container builds, and the checks below passed. The local stack uses disposable data. Final proof containers, volumes, kind cluster, port forward, simulator, and emulator were removed.
+The following evidence was recorded on November 5, 2026. The [successful main CI run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42104343998) verified commit `4181ae8`. Hosted and local results are labeled separately.
 
-| Check | Observed result | Reproduce or inspect |
+| Check | Observed result | Evidence or reproduction |
 | --- | --- | --- |
-| Node unit tests | 14 passed, 0 failed | `npm test` |
-| Compose smoke | CRUD, cross-user isolation, persistence after API restart passed | `npm run smoke -- --restart-api` |
-| Terraform | Format and validate passed, 3 mock plans passed | [AWS runbook](infra/terraform/README.md) |
-| Kubernetes | 2 API replicas ready, pod replacement and Service smoke passed | [kind runbook](infra/kubernetes/README.md) |
-| Playwright | 4 passed, 0 failed, 0 flaky, 0 retries in the latest real run | `playwright-report/index.html`, `test-results/playwright.json` |
-| Mobile | iOS 1/1 passed in 25.47 s, Android 1/1 passed in 34.56 s, both with persisted state | [mobile runbook](tests/mobile/README.md) |
-| AI eval | Draft 3/4, worked revision 4/4, both cleanup checks passed | [worked example](tests/ai-evals/worked-example.md) |
+| Lint and unit tests | Hosted CI passed; 14 unit tests, 0 failed. | `npm run lint` and `npm test` |
+| Compose | Hosted builds and CRUD/isolation/persistence smoke passed. | `npm run smoke -- --restart-api` |
+| Playwright | Hosted: 4 passed, 0 failed, 0 flaky, 0 retries; 2.04 s runner time. | [Browser report artifact](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42104343998/artifacts/13452180286) |
+| Terraform | Hosted format and validate passed; 3 mocked plans passed. | Local commands above and the CI Terraform job. |
+| Kubernetes | Local: 2 API replicas ready; deleted pod replaced; Service smoke and rollout passed. | [kind runbook](infra/kubernetes/README.md) |
+| Mobile | Local: iOS 1/1 in 25.47 s; Android 1/1 in 34.56 s; persisted state verified. | [Mobile runbook](tests/mobile/README.md) |
+| AI eval | Local: draft 3/4, worked revision 4/4; cleanup checks passed. | [Actual worked example](tests/ai-evals/worked-example.md) |
 
-The latest recorded local Playwright runner duration was 1.18 seconds. Earlier real local runs were 3.48, 1.28, and 1.22 seconds, all with four passing tests and zero flakes. A separate temporary retry probe confirmed one retry and failure screenshot and trace capture. It was removed before the real suite was rerun. The dashboard labels source and counts every attempt. The first hosted Playwright run passed all four cases with zero failures, flakes, or retries in 2.70 seconds. The second hosted run passed the same four cases in 1.75 seconds while the workflow took 668 seconds. The two completed workflows took 91 and 668 seconds, averaging 379.50 seconds. Their Playwright runtimes averaged 2.23 seconds. The dashboard keeps both measurements and links each completed workflow.
+The main workflow elapsed **88 seconds**, including setup and cleanup. Four imported hosted runs averaged **235.25 seconds** of whole-workflow elapsed time and **2.10 seconds** of Playwright runtime. One slow run spent most of its time downloading Ubuntu font packages. These are a small observed sample, not throughput or large-scale reliability claims. The latest recorded local browser run took 1.18 seconds.
 
-To demo the project, start Compose, open a disposable workspace, and create and complete a task. Run the browser suite and inspect its report. Then use the kind runbook to delete an API pod and observe the replacement, or the mobile runbook to run the same task journey on a simulator.
-
-## CI and scope
-
-The [CI workflow](.github/workflows/ci.yml) runs on every push. It runs ESLint and Node tests, builds the containers, runs the Compose smoke test, runs Playwright with one retry and uploads the reports and failure screenshots, and validates Terraform with the mocked plan tests. The commands passed locally and in the [first hosted CI run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333). The run verified source commit `514a3a8`. GitHub recorded 1 minute 31 seconds from run start to completion, with the app job taking 1 minute 26 seconds and the parallel Terraform job 17 seconds. These are measurements from one hosted run.
-
-Download the [Playwright report artifact](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333/artifacts/13440093704) to inspect its HTML report, raw JSON, and dashboard. GitHub requires sign-in to download artifacts. The workflow retains artifacts for seven days. Regenerate reports with the documented commands after they expire.
-
-This is an independent personal project built to demonstrate test infrastructure skills. The local app, Docker Compose, and Kubernetes checks use synthetic data. The AWS stack is defined and validated locally. Live planning, deployment, and teardown require account access and approval. Local verification has zero cloud cost. The browser suite and mobile automation use the local stack. AI evals run against the local stack and the pinned local model.
+GitHub requires sign-in to download artifacts and retains them for seven days. After expiry, regenerate reports locally or use a newer successful run. The [CI workflow](.github/workflows/ci.yml) runs on every push, uploads HTML/JSON reports and failure evidence, and tears down its Compose stack. Mobile and Kubernetes proofs are local and are not represented as hosted CI runs.
 
 ## Review in five minutes
 
-With the pinned prerequisites installed and images available, use the full local startup commands above, then check the following.
+With the pinned tools installed and images/Chromium downloaded:
 
-- [ ] Open the web app, create a disposable workspace, and create and complete a task.
-- [ ] Run `npm test` and `npm run smoke -- --restart-api` to check API behavior and persistence.
-- [ ] Run `npm run test:e2e` and inspect the [generated browser report](playwright-report/index.html).
-- [ ] Inspect the [Kubernetes manifests](infra/kubernetes/app.yaml), [Terraform configuration](infra/terraform), and their reproducible runbooks.
-- [ ] Read the [actual AI draft and revised candidate](tests/ai-evals/worked-example.md), then inspect the [human promotion gate](tests/ai-evals/README.md#human-review-gate).
-- [ ] Read the [two-minute walkthrough](docs/interview-walkthrough.md) and [personal-project resume bullets](docs/resume-bullets.md).
-- [ ] Tear down the Compose stack with `docker compose down --volumes`.
+- [ ] Open the [repository](https://github.com/jsayram/test-infrastructure-platform) and [green CI run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42104343998).
+- [ ] Start Compose, open the web UI, and create, complete, and delete a synthetic task.
+- [ ] Run `npm test` and `npm run smoke -- --restart-api` to show checks and persistence.
+- [ ] Run `npm run test:e2e` and inspect the generated `playwright-report/index.html` locally.
+- [ ] Pick one deeper example: pod replacement, the mobile flow, or the AI regression that exposed a weak assertion.
+- [ ] Use the [two-minute walkthrough](docs/interview-walkthrough.md) and [personal-project resume bullets](docs/resume-bullets.md) for interview preparation.
+- [ ] Clean up with `docker compose down --volumes`, then `unset POSTGRES_PASSWORD`. Follow optional demo teardown too.
 
-The first tool and image downloads take additional time. The browser report is generated locally and is ignored by Git. The [CI workflow](.github/workflows/ci.yml), [successful hosted run](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333), and [downloadable report](https://github.com/jsayram/test-infrastructure-platform/actions/runs/42081253333/artifacts/13440093704) provide public verification links.
+## Repository guide
+
+```text
+apps/                  API, web UI, SwiftUI and Kotlin clients
+infra/terraform/       AWS configuration and mocked tests
+infra/kubernetes/      Local kind manifests and recovery runbook
+tests/playwright/      Browser journeys, page objects and reporting
+tests/mobile/          Shared Maestro flow and local runner
+tests/ai-evals/        Local generation, evaluation and human gate
+.github/workflows/     Push-triggered CI
+scripts/               Health setup/teardown and API smoke checks
+docs/                  Interview walkthrough and project resume bullets
+```
 
 ## Honest scope and future work
 
-The app is for synthetic test data, and the workspace name flow provides no authentication. The local Kubernetes proof uses one kind node and two API replicas. The browser suite runs four critical journeys with two workers. Mobile proof comes from local simulator and emulator runs. These measurements describe the environment that was actually exercised.
+This is a personal demonstration using synthetic data. The workspace name flow has no authentication. Kubernetes proof uses one local node and two API replicas; browser proof uses four journeys and two workers. Native mobile proof uses local simulators/emulators. Terraform validation with mocks does not prove AWS permissions, regional availability, or deployment. No live AWS deployment is needed to use or demonstrate this project.
 
-The AWS resources have been validated with mock plans. A real account-backed plan, apply, endpoint check, and destroy remain pending account and cost approval. The public repository and hosted CI are available on GitHub. Future extensions include authenticated shared environments, multi-node recovery exercises, measured CI sharding, and longer report history.
-
-The repository keeps separate native build files and runbooks so each platform can be reproduced independently. Generated dependencies, build products, reports, environment files, and Terraform state stay outside Git.
+Future work includes authenticated shared environments, multi-node recovery exercises, measured CI sharding, and longer report history. This repository makes no claims of production cloud operations or scale that was not exercised. `.gitignore` excludes real environment files, dependencies, reports, native builds, and Terraform state/plans. Never add credentials or real user data.
 
 ## License
 
